@@ -3,6 +3,7 @@ package concurrent_test
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 type WebsiteChecker func(string) bool
@@ -11,8 +12,12 @@ func CheckWebsites(wc WebsiteChecker, urls []string) map[string]bool {
 	result := make(map[string]bool)
 
 	for _, url := range urls {
-		result[url] = wc(url)
+		go func(u string) {
+			result[u] = wc(u)
+		}(url)
 	}
+
+	time.Sleep(2 * time.Second)
 
 	return result
 }
@@ -49,5 +54,21 @@ func TestCheckWebsite(t *testing.T) {
 
 	if !reflect.DeepEqual(expectedResults, actualResult) {
 		t.Fatalf("Wanted %v, got %v", expectedResults, actualResult)
+	}
+}
+
+func slowStubWebsiteChecker(_ string) bool {
+	time.Sleep(20 * time.Millisecond)
+	return true
+}
+
+func BenchmarkCheckWebsites(b *testing.B) {
+	urls := make([]string, 100)
+	for i := 0; i < len(urls); i++ {
+		urls[i] = "a url"
+	}
+
+	for i := 0; i < b.N; i++ {
+		CheckWebsites(slowStubWebsiteChecker, urls)
 	}
 }
