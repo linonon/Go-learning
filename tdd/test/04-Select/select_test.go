@@ -9,20 +9,13 @@ import (
 )
 
 func TestRacer(t *testing.T) {
-	slowServer := makeDelayedServer(200 * time.Millisecond)
-	fastServer := makeDelayedServer(000 * time.Millisecond)
+	Server := makeDelayedServer(25 * time.Millisecond)
 
-	defer slowServer.Close()
-	defer fastServer.Close()
+	defer Server.Close()
 
-	slowURL := "http://www.fackebook.com"
-	fastURL := "http://www.quii.co.uk"
-
-	want := fastURL
-	got := Racer(slowURL, fastURL)
-
-	if got != want {
-		t.Errorf("got '%s', want '%s'", got, want)
+	_, err := ConfigurableRacer(Server.URL, Server.URL, 20*time.Millisecond)
+	if err == nil {
+		t.Error("expected an error but didn't get one")
 	}
 }
 
@@ -33,21 +26,28 @@ func makeDelayedServer(delay time.Duration) *httptest.Server {
 	}))
 }
 
-func Racer(a, b string) (winner string) {
-	aDuration := measureResponseTime(a)
-	bDuration := measureResponseTime(b)
+var tenSeconds = 10 * time.Second
 
-	fmt.Println(a, aDuration, ";", b, bDuration)
-
-	if aDuration < bDuration {
-		return a
-	}
-
-	return b
+func Racer(a, b string) (winner string, err error) {
+	return ConfigurableRacer(a, b, tenSeconds)
 }
 
-func measureResponseTime(url string) time.Duration {
-	start := time.Now()
-	http.Get(url)
-	return time.Since(start)
+func ConfigurableRacer(a, b string, timeout time.Duration) (winner string, err error) {
+	select {
+	case <-ping(a):
+		return a, nil
+	case <-ping(b):
+		return b, nil
+	case <-time.After(timeout):
+		return "", fmt.Errorf("timed out wating for %s and %s", a, b)
+	}
+}
+
+func ping(url string) chan bool {
+	ch := make(chan bool)
+	go func() {
+		http.Get(url)
+		ch <- true
+	}()
+	return ch
 }
