@@ -1,9 +1,8 @@
-// log service entry point
 package main
 
 import (
 	"context"
-	"distributed/log"
+	"distributed/grades"
 	"distributed/registry"
 	"distributed/service"
 	"fmt"
@@ -11,19 +10,23 @@ import (
 )
 
 func main() {
-	log.Run("./distributed.log")
-	host, port := "localhost", "4000"
+	host, port := "localhost", "6000"
 	serviceAddr := fmt.Sprintf("http://%s:%s", host, port)
 	r := registry.Registration{
-		ServiceName: registry.LogService,
+		ServiceName: registry.GradingService,
 		ServiceURL:  serviceAddr,
 	}
-	ctx, err := service.Start(context.Background(), r, host, port, log.RegisterHandlers)
+	ctx, err := service.Start(
+		context.Background(),
+		r,
+		host,
+		port,
+		grades.RegisterHandlers,
+	)
 	if err != nil {
 		stlog.Fatalln(err)
 	}
 
 	<-ctx.Done()
-
 	fmt.Println("Shutting down log service")
 }
