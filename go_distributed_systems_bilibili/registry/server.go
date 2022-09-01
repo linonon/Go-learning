@@ -13,15 +13,22 @@ import (
 const ServerPort = ":3000"
 const ServicesURL = "http://localhost" + ServerPort + "/services"
 
+// Global registry
+var reg = registry{
+	registrations: make([]Registration, 0),
+	mutex:         new(sync.RWMutex),
+}
+
 type registry struct {
-	registrations []Registration
+	registrations []Registration // Store service configuration
 	mutex         *sync.RWMutex
 }
 
+// add Service to registry
 func (r *registry) add(reg Registration) error {
 	r.mutex.Lock()
 	r.registrations = append(r.registrations, reg)
-	defer r.mutex.Unlock()
+	r.mutex.Unlock()
 
 	err := r.sendRequestServices(reg)
 	if err != nil {
@@ -29,7 +36,7 @@ func (r *registry) add(reg Registration) error {
 	}
 	r.notify(patch{
 		Added: []patchEnrty{
-			patchEnrty{
+			{
 				Name: reg.ServiceName,
 				URL:  reg.ServiceURL,
 			},
@@ -44,25 +51,34 @@ func (r *registry) notify(fullPatch patch) {
 	defer r.mutex.RUnlock()
 
 	for _, reg := range r.registrations {
+
+		// Concurrent for each registration
 		go func(reg Registration) {
 			for _, reqService := range reg.RequiredServices {
+				// Init
 				p := patch{
 					Added:   []patchEnrty{},
 					Removed: []patchEnrty{},
 				}
 				isSendUpdate := false
+
+				// Add
 				for _, added := range fullPatch.Added {
 					if added.Name == reqService {
 						p.Added = append(p.Added, added)
 						isSendUpdate = true
 					}
 				}
+
+				// Remove
 				for _, remove := range fullPatch.Removed {
 					if remove.Name == reqService {
 						p.Removed = append(p.Removed, remove)
 						isSendUpdate = true
 					}
 				}
+
+				// Result
 				if isSendUpdate {
 					err := r.sendPatch(p, reg.ServiceUpdateURL)
 					if err != nil {
@@ -75,6 +91,7 @@ func (r *registry) notify(fullPatch patch) {
 	}
 }
 
+// get requeset service information
 func (r *registry) sendRequestServices(reg Registration) error {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -98,6 +115,7 @@ func (r *registry) sendRequestServices(reg Registration) error {
 	return nil
 }
 
+// patch means
 func (r *registry) sendPatch(p patch, url string) error {
 	d, err := json.Marshal(p)
 	if err != nil {
@@ -112,6 +130,7 @@ func (r *registry) sendPatch(p patch, url string) error {
 	return nil
 }
 
+// remove service
 func (r *registry) remove(url string) error {
 	for i := range r.registrations {
 		if r.registrations[i].ServiceURL == url {
@@ -130,11 +149,6 @@ func (r *registry) remove(url string) error {
 		}
 	}
 	return fmt.Errorf("Services at URL %s not found", url)
-}
-
-var reg = registry{
-	registrations: make([]Registration, 0),
-	mutex:         new(sync.RWMutex),
 }
 
 type RegistryService struct {

@@ -17,8 +17,13 @@ func Start(
 ) (
 	context.Context, error,
 ) {
+	// Handle requeset
 	registerHandlersFunc()
+
+	// Start Service
 	ctx = startService(ctx, reg.ServiceName, host, port)
+
+	// Send register data
 	err := registry.RegisterService(reg)
 	if err != nil {
 		return ctx, err
@@ -38,7 +43,10 @@ func startService(
 	srv.Addr = ":" + port
 
 	go func() {
+		// Real start service is here
 		log.Println(srv.ListenAndServe())
+
+		// Send Method: DELETE will delete the service
 		err := registry.ShutdownService(fmt.Sprintf("http://%s:%s", host, port))
 		if err != nil {
 			log.Println(err)
@@ -50,6 +58,8 @@ func startService(
 	go func() {
 		fmt.Printf("%v started. Press any key to shut down\n", serviceName)
 		var s string
+
+		// Pending here for key input
 		fmt.Scanln(&s)
 		err := registry.ShutdownService(fmt.Sprintf("http://%s:%s", host, port))
 		if err != nil {
