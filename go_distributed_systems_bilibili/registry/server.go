@@ -24,6 +24,9 @@ func (r *registry) add(reg Registration) error {
 	defer r.mutex.Unlock()
 
 	err := r.sendRequestServices(reg)
+	if err != nil {
+		return nil
+	}
 
 	return nil
 }
@@ -51,7 +54,7 @@ func (r *registry) sendRequestServices(reg Registration) error {
 	return nil
 }
 
-func sendPatch(p patch, url string) error {
+func (r *registry) sendPatch(p patch, url string) error {
 	d, err := json.Marshal(p)
 	if err != nil {
 		return err
