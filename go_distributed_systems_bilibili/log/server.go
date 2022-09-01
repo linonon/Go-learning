@@ -23,7 +23,7 @@ func (fl fileLog) Write(data []byte) (int, error) {
 
 // Run will save log with "go" prefix
 func Run(destination string) {
-	log = stlog.New(fileLog(destination), "go", stlog.LstdFlags)
+	log = stlog.New(fileLog(destination), "[go] - ", stlog.LstdFlags)
 }
 
 // RegisterHandlers will handle service
